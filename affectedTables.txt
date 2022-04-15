@@ -1,0 +1,24 @@
+Table
+	miutil_searchTermLog
+	MWRTEMPL
+		trg_apptSearchWizard_mwrtempl_updDel
+
+Stored procedure
+	miutil_searchApptComp
+	miutil_searchForAppointment
+	miUtil_sweepCache
+	miUtil_sysTemplateComp
+
+What about SQL jobs?
+		Appt Search Scrub Data/ Build Cache
+				Appt Search [miUtil_SweepCache]
+						/* clear out anything in the cache that's old or invalid */
+						exec [miUtil_sweepCache]
+				Appt Search [miUtil_RunRebuildTemplateCache]
+						exec [miUtil_RunRebuildTemplateCache]
+				Appt Search Update statistics
+						update statistics dbo.mitemplateComp;
+						update statistics dbo.mireasonTemplateLink;
+						update statistics dbo.miReasonMasterLink;
+						update statistics dbo.miReasonComp;
+						update statistics miBookTemplateLink;
