@@ -1,0 +1,387 @@
+# Databricks notebook source
+# MAGIC %md
+# MAGIC <img src= "/files/tables/avatar.jpg" width="100" height="100" />
+# MAGIC  
+# MAGIC ```
+# MAGIC 
+# MAGIC Name:         nb-sql-filter-n-aggregate
+# MAGIC 
+# MAGIC Design Phase:
+# MAGIC     Author:   John Miner
+# MAGIC     Date:     11-01-2022
+# MAGIC     Purpose:  Teach readers the following SPARK topics
+# MAGIC 
+# MAGIC Learning Guide:
+# MAGIC     1 - Read csv files into data frames
+# MAGIC     2 - Create temporary views from dataframes
+# MAGIC     3 - Temporary view expires at end of spark session
+# MAGIC     4 - Create new database
+# MAGIC     5 - Create new tables and views
+# MAGIC     6 - Filter Data using WHERE and HAVING
+# MAGIC     7 - Explore some aggregate functions for GROUP BY
+# MAGIC     8 - Capstone showing off complex query
+# MAGIC     
+# MAGIC ```
+
+# COMMAND ----------
+
+#
+# 1 - read in low temps
+#
+
+path1 = "/databricks-datasets/weather/low_temps"
+df1 = (
+  spark.read                    
+  .option("sep", ",")        
+  .option("header", "true")
+  .option("inferSchema", "true")  
+  .csv(path1)               
+)
+
+# make temp hive view
+df1.createOrReplaceTempView("tmp_low_temps")
+
+
+# COMMAND ----------
+
+#
+# 2 - read in high temps
+#
+
+path2 = "/databricks-datasets/weather/high_temps"
+df2 = (
+  spark.read                    
+  .option("sep", ",")        
+  .option("header", "true")
+  .option("inferSchema", "true")  
+  .csv(path2)               
+)
+
+# make temp hive view
+df2.createOrReplaceTempView("tmp_high_temps")
+
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 
+# MAGIC --
+# MAGIC --  3 - Show 5 rows for low temps
+# MAGIC --
+# MAGIC 
+# MAGIC select * from tmp_low_temps limit 5
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 
+# MAGIC --
+# MAGIC --  4 - Show 5 rows for low temps
+# MAGIC --
+# MAGIC 
+# MAGIC 
+# MAGIC select * from tmp_high_temps limit 5
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 
+# MAGIC --
+# MAGIC --  5 - Join low and high tables and show 5 rows
+# MAGIC --
+# MAGIC 
+# MAGIC 
+# MAGIC select 
+# MAGIC     l.date, 
+# MAGIC     h.temp as high_temp, 
+# MAGIC     l.temp as low_temp
+# MAGIC from 
+# MAGIC     tmp_high_temps as h
+# MAGIC join 
+# MAGIC     tmp_low_temps as l
+# MAGIC on 
+# MAGIC     h.date = l.date 
+# MAGIC limit 5
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 
+# MAGIC --
+# MAGIC --  6 - Create a new database
+# MAGIC --
+# MAGIC 
+# MAGIC create database sparktips;
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 
+# MAGIC --
+# MAGIC --  7 - Create low temps table
+# MAGIC --
+# MAGIC 
+# MAGIC -- choose schema
+# MAGIC use sparktips;
+# MAGIC 
+# MAGIC -- remove existing table
+# MAGIC DROP TABLE IF EXISTS low_temps;
+# MAGIC 
+# MAGIC -- create table
+# MAGIC CREATE TABLE IF NOT EXISTS low_temps
+# MAGIC (
+# MAGIC     low_date DATE COMMENT 'The day of the observation.',
+# MAGIC 	low_temp INT COMMENT 'The low temp of the day.'
+# MAGIC )
+# MAGIC USING CSV
+# MAGIC LOCATION '/databricks-datasets/weather/low_temps'
+# MAGIC COMMENT 'Table containing low temperature for a given day.'
+# MAGIC OPTIONS 
+# MAGIC (
+# MAGIC     header = "false", 
+# MAGIC     delimiter = ","
+# MAGIC );
+# MAGIC 
+# MAGIC -- show sample records
+# MAGIC select * from low_temps limit 5
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 
+# MAGIC --
+# MAGIC --  8 - Create high temps table
+# MAGIC --
+# MAGIC 
+# MAGIC 
+# MAGIC -- choose schema
+# MAGIC use sparktips;
+# MAGIC 
+# MAGIC -- remove existing table
+# MAGIC DROP TABLE IF EXISTS high_temps;
+# MAGIC 
+# MAGIC -- create table
+# MAGIC CREATE TABLE IF NOT EXISTS high_temps
+# MAGIC (
+# MAGIC     high_date DATE COMMENT 'The day of the observation.',
+# MAGIC 	high_temp INT COMMENT 'The high temp of the day.'
+# MAGIC )
+# MAGIC USING CSV
+# MAGIC LOCATION '/databricks-datasets/weather/high_temps'
+# MAGIC COMMENT 'Table containing high temperature for a given day.'
+# MAGIC OPTIONS 
+# MAGIC (
+# MAGIC     header = "false", 
+# MAGIC     delimiter = ","
+# MAGIC );
+# MAGIC 
+# MAGIC -- show sample records
+# MAGIC select * from high_temps limit 5
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 
+# MAGIC --
+# MAGIC --  9 - Create view to join low to high tables and include date attributes
+# MAGIC --
+# MAGIC 
+# MAGIC -- choose schema
+# MAGIC use sparktips;
+# MAGIC 
+# MAGIC -- create view
+# MAGIC CREATE OR REPLACE VIEW daily_temps
+# MAGIC (
+# MAGIC     obs_date COMMENT 'Observation Date',
+# MAGIC     obs_year COMMENT 'Observation Year',
+# MAGIC     obs_quarter COMMENT 'Observation Quarter',
+# MAGIC     obs_month COMMENT 'Observation Month',
+# MAGIC     obs_week COMMENT 'Observation Week',
+# MAGIC     obs_dow COMMENT 'Observation Day Of Week',
+# MAGIC     obs_day COMMENT 'Observation Day',
+# MAGIC     daily_low_temp COMMENT 'Daily Low Temp',
+# MAGIC     daily_high_temp COMMENT 'Daily High Temp',
+# MAGIC     daily_avg_temp COMMENT 'Daily Avg Temp'
+# MAGIC )
+# MAGIC COMMENT 'View of temperatures for a given day with associated date parts for aggegration.'
+# MAGIC AS 
+# MAGIC   select 
+# MAGIC     l.low_date as obs_date, 
+# MAGIC     year(l.low_date) as obs_year, 
+# MAGIC     extract(quarter from l.low_date) as obs_quarter,
+# MAGIC     month(l.low_date) as obs_month, 
+# MAGIC     extract(week from l.low_date) as obs_week,
+# MAGIC     extract(dow from l.low_date) as obs_dow,
+# MAGIC     day(l.low_date) as obs_day,    
+# MAGIC     
+# MAGIC     l.low_temp as daily_low_temp,
+# MAGIC     h.high_temp as daily_high_temp, 
+# MAGIC     (h.high_temp + l.low_temp) / 2 as daily_avg_temp
+# MAGIC   from 
+# MAGIC     sparktips.high_temps as h
+# MAGIC   join 
+# MAGIC     sparktips.low_temps as l
+# MAGIC   on 
+# MAGIC     l.low_date = h.high_date;
+# MAGIC 
+# MAGIC -- show sample records
+# MAGIC select * from daily_temps limit 5;
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 
+# MAGIC --
+# MAGIC -- 10 - How many rows of data by year?
+# MAGIC --
+# MAGIC 
+# MAGIC select obs_year, count(*) as obs
+# MAGIC from sparktips.daily_temps
+# MAGIC group by obs_year
+# MAGIC order by obs_year
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 
+# MAGIC --
+# MAGIC -- 11 - Where Clause - filtering data
+# MAGIC --
+# MAGIC 
+# MAGIC select 
+# MAGIC     *
+# MAGIC from 
+# MAGIC     sparktips.daily_temps
+# MAGIC where 
+# MAGIC     obs_year in (2015, 2016, 2017)
+# MAGIC     and obs_month = 5 
+# MAGIC     and obs_day = 4
+# MAGIC order by 
+# MAGIC     obs_year
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 
+# MAGIC --
+# MAGIC -- 12 - Having Clause - filtering data
+# MAGIC --
+# MAGIC 
+# MAGIC select obs_year, count(*) as obs
+# MAGIC from sparktips.daily_temps
+# MAGIC group by obs_year
+# MAGIC having obs = 366
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 
+# MAGIC --
+# MAGIC -- 13 - Show off popular aggregations
+# MAGIC --
+# MAGIC 
+# MAGIC select 
+# MAGIC   obs_year,
+# MAGIC   obs_month,
+# MAGIC   first(daily_low_temp) as monthly_first_low,
+# MAGIC   last(daily_high_temp) as monthly_last_high,
+# MAGIC   min(daily_low_temp) as monthly_low,
+# MAGIC   max(daily_high_temp) as monthly_high,
+# MAGIC   cast(avg(daily_low_temp) as decimal(4,2)) as monthly_low_avg,
+# MAGIC   cast(avg(daily_high_temp) as decimal(4,2)) as monthly_high_avg,
+# MAGIC   cast(mean((daily_low_temp+daily_high_temp) / 2) as decimal(4,2)) as monthly_mean_avg_temp
+# MAGIC from sparktips.daily_temps
+# MAGIC where obs_quarter = 2
+# MAGIC group by 
+# MAGIC   obs_year,
+# MAGIC   obs_month
+# MAGIC order by 
+# MAGIC   obs_year,
+# MAGIC   obs_month
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 
+# MAGIC --
+# MAGIC -- 14 - Create table for lending club data
+# MAGIC --
+# MAGIC 
+# MAGIC -- choose schema
+# MAGIC use sparktips;
+# MAGIC 
+# MAGIC -- remove existing table
+# MAGIC DROP TABLE IF EXISTS lending_club;
+# MAGIC 
+# MAGIC -- create table
+# MAGIC CREATE TABLE IF NOT EXISTS lending_club
+# MAGIC USING CSV
+# MAGIC LOCATION '/databricks-datasets/lending-club-loan-stats/LoanStats_2018Q2.csv'
+# MAGIC OPTIONS 
+# MAGIC (
+# MAGIC     header = "true", 
+# MAGIC     delimiter = ","
+# MAGIC );
+# MAGIC 
+# MAGIC -- show sample records
+# MAGIC select * from lending_club limit 5
+
+# COMMAND ----------
+
+#
+# 15 - Show columns in table
+#
+
+df1 = spark.sql("show columns in sparktips.lending_club")
+display(df1)
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 
+# MAGIC --
+# MAGIC -- 16 - Capstone query - use cte to select and format data, show the cnt and avg of amount of loans by year, state and loan status
+# MAGIC --
+# MAGIC 
+# MAGIC with cte_loan_data
+# MAGIC as
+# MAGIC (
+# MAGIC select 
+# MAGIC   addr_state,
+# MAGIC   
+# MAGIC   case
+# MAGIC     when loan_status = "Current" then "false"
+# MAGIC     when loan_status = "Fully Paid" then "false"
+# MAGIC     else "true"
+# MAGIC   end as bad_loan,
+# MAGIC   
+# MAGIC  case
+# MAGIC     when cast(substring(earliest_cr_line, 5, 4) as double) < 50 then cast(substring(earliest_cr_line, 5, 4) as double) + 2000
+# MAGIC     else  cast(substring(earliest_cr_line, 5, 4) as double) + 1900
+# MAGIC   end as loan_year,
+# MAGIC   
+# MAGIC   loan_amnt
+# MAGIC from 
+# MAGIC   sparktips.raw_lending_club
+# MAGIC )
+# MAGIC select 
+# MAGIC   loan_year,
+# MAGIC   addr_state,
+# MAGIC   bad_loan,
+# MAGIC   count(loan_amnt) as num_loans,
+# MAGIC   round(cast(avg(loan_amnt) as decimal(12, 4)), 2) as avg_amount 
+# MAGIC from 
+# MAGIC   cte_loan_data
+# MAGIC where
+# MAGIC   addr_state in ('RI', 'CT', 'MA', 'NH', 'VT', 'ME')
+# MAGIC   and loan_year = 2012
+# MAGIC group by
+# MAGIC   loan_year,
+# MAGIC   addr_state,
+# MAGIC   bad_loan
+# MAGIC having
+# MAGIC   count(loan_amnt) > 0
+# MAGIC order by
+# MAGIC   loan_year,
+# MAGIC   addr_state,
+# MAGIC   bad_loan
