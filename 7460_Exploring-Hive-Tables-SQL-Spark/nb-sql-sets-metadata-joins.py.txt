@@ -1,0 +1,369 @@
+-- Databricks notebook source
+-- MAGIC %md
+-- MAGIC <img src= "/files/tables/avatar.jpg" width="100" height="100" />
+-- MAGIC  
+-- MAGIC ```
+-- MAGIC 
+-- MAGIC Name:         nb-sql-sets-metadata-joins
+-- MAGIC 
+-- MAGIC Design Phase:
+-- MAGIC     Author:   John Miner
+-- MAGIC     Date:     11-01-2022
+-- MAGIC     Purpose:  Teach readers the following SPARK topics
+-- MAGIC 
+-- MAGIC Learning Guide:
+-- MAGIC     1 - Create dataframes from tuples
+-- MAGIC     2 - Create temporary views from dataframes
+-- MAGIC     3 - Explore SQL set operators
+-- MAGIC     4 - Explore hive metadata
+-- MAGIC     5 - Explore SQL Joins
+-- MAGIC     
+-- MAGIC ```
+
+-- COMMAND ----------
+
+-- MAGIC %python
+-- MAGIC #
+-- MAGIC # 1 - Create teacher dataframe + view
+-- MAGIC #
+-- MAGIC 
+-- MAGIC # required library
+-- MAGIC from pyspark.sql.functions import *
+-- MAGIC 
+-- MAGIC # array of tuples - data
+-- MAGIC dat1 = [
+-- MAGIC   (1, "Anne Sullivan", "1866–1936"),
+-- MAGIC   (2, "Jaime Escalante", "1930–2010"),
+-- MAGIC   (3, "Maria Montessori", "1870–1952"),
+-- MAGIC   (1, "Helen Keller", "1880–1968"),
+-- MAGIC   (2, "Christa McAuliffe", "1948–1986"),
+-- MAGIC   (3, "Marva Collins", "1936–2015"),
+-- MAGIC   (4, "Albert Einstein", "1879–1955")
+-- MAGIC ]
+-- MAGIC 
+-- MAGIC # array of names - columns
+-- MAGIC col1 = ["id", "teacher_name", "life_dates"]
+-- MAGIC 
+-- MAGIC # make data frame
+-- MAGIC df1 = spark.createDataFrame(data=dat1, schema=col1)
+-- MAGIC 
+-- MAGIC # make temp hive view
+-- MAGIC df1.createOrReplaceTempView("tmp_teachers")
+-- MAGIC 
+-- MAGIC # show schema
+-- MAGIC df1.printSchema()
+-- MAGIC 
+-- MAGIC # show data
+-- MAGIC display(df1)
+
+-- COMMAND ----------
+
+-- MAGIC %python
+-- MAGIC #
+-- MAGIC # 2 - Create sample transfer student dataframe + view
+-- MAGIC #
+-- MAGIC 
+-- MAGIC # array of tuples - data
+-- MAGIC dat2 = [
+-- MAGIC   (1, "Barack Obama", "US President"),
+-- MAGIC   (2, "George Lucas", "Hollywood Director"),
+-- MAGIC   (3, "Steven Spielberg", "Hollywood Director"),
+-- MAGIC   (1, "Lucy Liu", "Actress"),
+-- MAGIC   (2, "Jackie Robbinson", "MLB Player"),
+-- MAGIC   (3, "Billy Crystal", "Comedian"),
+-- MAGIC   (1, "Tom Hanks", "Actor"),
+-- MAGIC   (2, "John Glenn", "Astronaut"),
+-- MAGIC   (3, "Robert Lee Frost", "Poet"),
+-- MAGIC   (0, "John Fitzgerald Kennedy", "US President"),
+-- MAGIC   (1, "Martha Stewart", "Television Personality"),
+-- MAGIC   (2, "Morgan Freeman", "Actor"),
+-- MAGIC   (3, "Warren Buffett", "Business Magnate")
+-- MAGIC ]
+-- MAGIC 
+-- MAGIC # array of names - columns
+-- MAGIC col2 = ["id", "student_name", "fame"]
+-- MAGIC 
+-- MAGIC # make data frame
+-- MAGIC df2 = spark.createDataFrame(data=dat2, schema=col2)
+-- MAGIC 
+-- MAGIC # make temp hive view
+-- MAGIC df2.createOrReplaceTempView("tmp_students")
+-- MAGIC 
+-- MAGIC # show schema
+-- MAGIC df2.printSchema()
+-- MAGIC 
+-- MAGIC # show data
+-- MAGIC display(df2)
+
+-- COMMAND ----------
+
+--
+--  https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-setops.html
+--
+
+
+-- COMMAND ----------
+
+--
+--  3 - Test union operator
+--
+
+with cte_data as
+(
+select 'student' as type, student_name from tmp_students
+union
+select 'teacher' as type, teacher_name from tmp_teachers
+)
+select type, count(*) as total
+from cte_data
+group by type
+
+
+-- COMMAND ----------
+
+--
+--  4 - Test union operator
+--
+
+select id as test_id from tmp_students
+union 
+select id as test_id from tmp_teachers
+order by test_id
+
+-- COMMAND ----------
+
+--
+--  5 - Test except operator
+--
+
+select id as test_id from tmp_students
+except
+select id as test_id from tmp_teachers
+
+
+
+-- COMMAND ----------
+
+--
+--  6 - Test except operator
+--
+
+select id as test_id from tmp_teachers
+except
+select id as test_id from tmp_students
+
+
+
+-- COMMAND ----------
+
+--
+--  7 - Test intersect operator
+--
+
+select id as test_id from tmp_teachers
+intersect
+select id as test_id from tmp_students
+
+-- COMMAND ----------
+
+
+
+-- COMMAND ----------
+
+--
+--  8 - List databases
+--
+
+show databases;
+
+-- COMMAND ----------
+
+--
+--  9 - List tables
+--
+
+show tables in star;
+
+-- COMMAND ----------
+
+--
+-- 10 - describe table or view
+--
+
+describe table extended star.dim_product
+
+
+-- COMMAND ----------
+
+-- MAGIC %python
+-- MAGIC 
+-- MAGIC #
+-- MAGIC #  11 - Show table definition
+-- MAGIC #
+-- MAGIC 
+-- MAGIC df1 = spark.sql("show create table dim.product")
+-- MAGIC df1.first().createtab_stmt.replace("\n", " ").replace("  ", "")
+
+-- COMMAND ----------
+
+
+
+-- COMMAND ----------
+
+--
+--  12 - Count rows in tables
+--
+
+use star;
+
+select 'dim.product' as label, count(*) as row_count from dim_product
+union
+select 'dim.product_subcategory' as label, count(*) as row_count from dim_product_subcategory;
+
+
+-- COMMAND ----------
+
+--
+--  13 - Count products without sub categories
+--
+
+select 'no sub category' as label, count(*) as row_count from dim_product where productsubcategorykey is null
+union
+select 'sub category' as label, count(*) as row_count from dim_product where productsubcategorykey is not null
+
+
+-- COMMAND ----------
+
+
+
+-- COMMAND ----------
+
+--
+--  https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-join.html
+--
+
+
+
+-- COMMAND ----------
+
+--
+--  14 - Inner Join
+--
+
+select 
+  ProductKey, EnglishProductName, EnglishProductSubcategoryName
+from 
+  dim_product as s 
+inner join 
+  dim_product_subcategory as p
+on 
+  s.ProductSubcategoryKey = p.ProductSubcategoryKey
+
+-- COMMAND ----------
+
+--
+-- 15 - Left Join
+--
+
+select 
+  ProductKey, EnglishProductName, EnglishProductSubcategoryName
+from 
+  dim_product as s 
+left join 
+  dim_product_subcategory as p
+on 
+  s.ProductSubcategoryKey = p.ProductSubcategoryKey
+
+-- COMMAND ----------
+
+--
+-- 16 - Right Join
+--
+
+select 
+  ProductKey, EnglishProductName, EnglishProductSubcategoryName
+from 
+  dim_product as s 
+right join 
+  dim_product_subcategory as p
+on 
+  s.ProductSubcategoryKey = p.ProductSubcategoryKey
+
+-- COMMAND ----------
+
+--
+-- 17 - Full Join
+--
+
+select 
+  ProductKey, EnglishProductName, EnglishProductSubcategoryName
+from 
+  dim_product as s 
+full join 
+  dim_product_subcategory as p
+on 
+  s.ProductSubcategoryKey = p.ProductSubcategoryKey
+
+-- COMMAND ----------
+
+--
+-- 18 - Cross Join
+--
+
+select 
+  count(*) as total
+from 
+  dim_product as s 
+cross join 
+  dim_product_subcategory as p
+
+
+-- COMMAND ----------
+
+--
+-- 19 - Cross Join
+--
+
+select 
+  s.productkey as each_product, count(*) as subcategory_cnt
+from 
+  dim_product as s 
+cross join 
+  dim_product_subcategory as p
+group by
+  s.productkey
+
+-- COMMAND ----------
+
+--
+-- 20 - Left Semi Join - (no subcategory records)
+--
+
+select 
+  s.ProductKey, s.EnglishProductName
+from 
+  dim_product as s 
+left semi join 
+  dim_product_subcategory as p
+on 
+  s.ProductSubcategoryKey = p.ProductSubcategoryKey
+  
+
+-- COMMAND ----------
+
+--
+-- 21 - Anti Join - (no subcategory records)
+--
+
+select 
+  s.ProductKey, s.EnglishProductName
+from 
+  dim_product as s 
+anti join 
+  dim_product_subcategory as p
+on 
+  s.ProductSubcategoryKey = p.ProductSubcategoryKey
+
+-- COMMAND ----------
+
+
