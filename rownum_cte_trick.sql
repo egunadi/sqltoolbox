@@ -8,16 +8,18 @@ insert into test (a, b, c)
 			(1, 'blue', 200),
 			(1, 'green', 100),
 			(1, 'green', 200),
-			(1, 'red', 100);
+			(1, 'red', 100)
 
--- Verify that the cte pulls what I want with a query like...
-select * from cte where rownum <> 1
-
--- Delete the unwanted rows with a statement like...
 ;with cte as (
 	select row_number() over (partition by a, b order by c desc) as rownum, *
 	from test
 )
+
+-- Verify that the cte pulls what I want with a query like...
+select * from cte where rownum <> 1
+
+
+-- Delete the unwanted rows with a statement like...
 delete from cte
 where rownum = 1 -- or 2...
 
