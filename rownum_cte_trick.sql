@@ -20,7 +20,7 @@ select * from cte where rownum <> 1
 
 -- Delete the unwanted rows with a statement like...
 delete ...
-	where rownum = 1 (or 2...)
+	where rownum = 1 -- (or 2...)
 
 
 --------------
