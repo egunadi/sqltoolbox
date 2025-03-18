@@ -1,8 +1,8 @@
 -- A query like this can be used...
 
-create table test (a int, b varchar(10), c int)
+declare @test table (a int, b varchar(10), c int)
 
-insert into test (a, b, c)
+insert into @test (a, b, c)
 		values
 			(1, 'blue', 100),
 			(1, 'blue', 200),
@@ -12,7 +12,7 @@ insert into test (a, b, c)
 
 ;with cte as (
 	select row_number() over (partition by a, b order by c desc) as rownum, *
-	from test
+	from @test
 )
 
 -- Verify that the cte pulls what I want with a query like...
