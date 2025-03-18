@@ -55,4 +55,4 @@ order by count(*),
 
 -----------
 
-for reference, see Case 00124960 (pv76_clroom) for NBCC
+-- for reference, see Case 00124960 (pv76_clroom) for NBCC
